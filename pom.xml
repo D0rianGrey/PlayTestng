@@ -9,9 +9,10 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
+        <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <browser>chromium</browser>
+        <headless>false</headless>
     </properties>
 
     <dependencies>
@@ -62,5 +63,95 @@
             <version>1.9.19</version>
         </dependency>
     </dependencies>
+
+    <profiles>
+        <profile>
+            <id>chrome</id>
+            <properties>
+                <browser>chromium</browser>
+                <headless>false</headless>
+            </properties>
+        </profile>
+        <profile>
+            <id>firefox-headless</id>
+            <properties>
+                <browser>firefox</browser>
+                <headless>true</headless>
+            </properties>
+        </profile>
+    </profiles>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>21</release>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.2</version>
+                <configuration>
+                    <!-- Параллельное выполнение -->
+                    <parallel>classes</parallel>
+                    <threadCount>3</threadCount>
+
+                    <!-- Слушатели TestNG -->
+                    <properties>
+                        <property>
+                            <name>listener</name>
+                            <value>
+                                com.framework.api.listeners.PlaywrightPageInjector,com.framework.api.listeners.PlaywrightTestFactory
+                            </value>
+                        </property>
+                    </properties>
+
+                    <!-- Настройка включаемых тестов -->
+                    <includes>
+                        <include>**/*Test.class</include>
+                    </includes>
+
+                    <!-- Файл конфигурации TestNG -->
+                    <suiteXmlFiles>
+                        <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                    </suiteXmlFiles>
+
+                    <!-- Системные свойства -->
+                    <systemPropertyVariables>
+                        <!-- Используются переменные из профилей и основных свойств -->
+                        <browser>${browser}</browser>
+                        <headless>${headless}</headless>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+
+            <!-- Плагин для установки браузеров Playwright -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>playwright-install</id>
+                        <phase>process-test-classes</phase>
+                        <goals>
+                            <goal>java</goal>
+                        </goals>
+                        <configuration>
+                            <mainClass>com.microsoft.playwright.CLI</mainClass>
+                            <arguments>
+                                <argument>install</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

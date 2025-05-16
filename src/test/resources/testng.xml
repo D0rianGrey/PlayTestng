@@ -1,0 +1,17 @@
+<!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
+<suite name="PlaywrightTestSuite" parallel="classes" thread-count="3">
+    <!-- Регистрация слушателей для обработки аннотаций и внедрения зависимостей -->
+    <listeners>
+        <listener class-name="com.framework.api.listeners.PlaywrightPageInjector"/>
+        <listener class-name="com.framework.api.listeners.PlaywrightTestFactory"/>
+    </listeners>
+
+    <!-- Определение набора тестов для запуска -->
+    <test name="HomePage Tests" parallel="classes" thread-count="3">
+        <classes>
+            <class name="com.framework.tests.HomePageTest"/>
+            <class name="com.framework.tests.ParameterizedTest"/>
+            <!-- Добавьте другие тестовые классы здесь -->
+        </classes>
+    </test>
+</suite>
