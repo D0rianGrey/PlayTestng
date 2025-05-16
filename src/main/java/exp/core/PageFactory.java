@@ -1,4 +1,4 @@
-package exp;
+package exp.core;
 
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;

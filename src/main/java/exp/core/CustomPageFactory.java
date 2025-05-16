@@ -1,8 +1,7 @@
-package exp;
+package exp.core;
 
 import com.microsoft.playwright.*;
 import exp.DefaultPageFactory;
-import exp.PageFactory;
 import exp.pages.HomePage;
 
 import java.lang.reflect.Method;

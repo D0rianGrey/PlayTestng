@@ -1,17 +1,21 @@
-package exp;
+package exp.core;
 
 import com.microsoft.playwright.*;
+import exp.DefaultPageFactory;
+import exp.PlaywrightConfig;
+import exp.ScreenshotHelper;
 import org.testng.ITestContext;
+import org.testng.ITestResult;
 import org.testng.annotations.*;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Test(dataProvider = "pageObjects")
 public abstract class PlaywrightBaseTest {
+
     // Не статические поля для изоляции между тестовыми классами
     protected Playwright playwright;
     protected Browser browser;
@@ -114,5 +118,16 @@ public abstract class PlaywrightBaseTest {
             }
         }
         return factory;
+    }
+
+    @AfterMethod
+    public void afterMethod(ITestResult result) {
+        if (PlaywrightConfig.getInstance().takeScreenshotOnFailure()) {
+            ScreenshotHelper.captureScreenshotOnFailure(result, page);
+        }
+
+        if (PlaywrightConfig.getInstance().captureTraceOnFailure()) {
+            ScreenshotHelper.captureTraceOnFailure(result, browserContext);
+        }
     }
 }
