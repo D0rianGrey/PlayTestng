@@ -4,6 +4,8 @@ import com.microsoft.playwright.*;
 import exp.DefaultPageFactory;
 import exp.PlaywrightConfig;
 import exp.ScreenshotHelper;
+import exp.annotations.TestData;
+import exp.annotations.UsePage;
 import org.testng.ITestContext;
 import org.testng.ITestResult;
 import org.testng.annotations.*;
@@ -57,19 +59,69 @@ public abstract class PlaywrightBaseTest {
 
     @DataProvider(name = "pageObjects")
     public Object[][] pageObjectsProvider(Method method) {
-        // Проверяем наличие аннотации UsePage на методе
-        UsePage usePage = method.getAnnotation(UsePage.class);
-        if (usePage == null) {
-            // Если нет на методе, проверяем на классе
-            usePage = getClass().getAnnotation(UsePage.class);
+        // Проверяем, есть ли аннотация TestData
+        TestData testData = method.getAnnotation(TestData.class);
+
+        if (testData != null && testData.data().length > 0) {
+            // Данные из аннотации TestData
+            String[] dataValues = testData.data();
+            // Количество наборов данных
+            int dataCount = dataValues.length;
+            // Результирующий массив параметров
+            Object[][] result = new Object[dataCount][];
+
+            // Для каждого набора данных создаем параметры
+            for (int i = 0; i < dataCount; i++) {
+                // Получаем параметры метода
+                Parameter[] parameters = method.getParameters();
+                // Создаем массив значений параметров
+                Object[] params = new Object[parameters.length];
+
+                // Заполняем массив значений параметров
+                boolean dataParameterSet = false;
+                for (int j = 0; j < parameters.length; j++) {
+                    Parameter param = parameters[j];
+                    Class<?> paramType = param.getType();
+
+                    // Если тип параметра String и мы еще не установили значение данных,
+                    // устанавливаем значение из TestData
+                    if (!dataParameterSet && paramType.equals(String.class)) {
+                        params[j] = dataValues[i];
+                        dataParameterSet = true;
+                    }
+                    // Иначе обрабатываем параметр как обычно
+                    else if (paramType.equals(Playwright.class)) {
+                        params[j] = playwright;
+                    } else if (paramType.equals(Browser.class)) {
+                        params[j] = browser;
+                    } else if (paramType.equals(BrowserContext.class)) {
+                        params[j] = browserContext;
+                    } else if (paramType.equals(Page.class)) {
+                        params[j] = page;
+                    } else {
+                        // Получаем фабрику страниц
+                        PageFactory factory = getPageFactory(getPageFactoryClass(method));
+
+                        if (factory.canCreate(paramType)) {
+                            Object pageObject = factory.createPage(
+                                    playwright, browser, browserContext, page,
+                                    getClass(), method
+                            );
+
+                            if (pageObject != null) {
+                                params[j] = pageObject;
+                            }
+                        }
+                    }
+                }
+
+                result[i] = params;
+            }
+
+            return result;
         }
 
-        Class<? extends PageFactory> factoryClass = DefaultPageFactory.class;
-        if (usePage != null) {
-            factoryClass = usePage.value();
-        }
-
-        PageFactory factory = getPageFactory(factoryClass);
+        // Стандартная логика для обычных тестов без TestData
         Parameter[] parameters = method.getParameters();
         Object[] params = new Object[parameters.length];
 
@@ -85,14 +137,19 @@ public abstract class PlaywrightBaseTest {
                 params[i] = browserContext;
             } else if (paramType.equals(Page.class)) {
                 params[i] = page;
-            } else if (factory.canCreate(paramType)) {
-                Object pageObject = factory.createPage(
-                        playwright, browser, browserContext, page,
-                        getClass(), method
-                );
+            } else {
+                // Получаем фабрику страниц
+                PageFactory factory = getPageFactory(getPageFactoryClass(method));
 
-                if (pageObject != null) {
-                    params[i] = pageObject;
+                if (factory.canCreate(paramType)) {
+                    Object pageObject = factory.createPage(
+                            playwright, browser, browserContext, page,
+                            getClass(), method
+                    );
+
+                    if (pageObject != null) {
+                        params[i] = pageObject;
+                    }
                 }
             }
         }
@@ -129,5 +186,15 @@ public abstract class PlaywrightBaseTest {
         if (PlaywrightConfig.getInstance().captureTraceOnFailure()) {
             ScreenshotHelper.captureTraceOnFailure(result, browserContext);
         }
+    }
+
+    // Вспомогательный метод для получения класса фабрики страниц
+    private Class<? extends PageFactory> getPageFactoryClass(Method method) {
+        UsePage usePage = method.getAnnotation(UsePage.class);
+        if (usePage == null) {
+            usePage = getClass().getAnnotation(UsePage.class);
+        }
+
+        return usePage != null ? usePage.value() : DefaultPageFactory.class;
     }
 }

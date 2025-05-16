@@ -1,6 +1,7 @@
-package exp.core;
+package exp.annotations;
 
 import exp.DefaultPageFactory;
+import exp.core.PageFactory;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

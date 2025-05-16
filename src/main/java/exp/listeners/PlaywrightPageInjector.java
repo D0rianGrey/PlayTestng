@@ -3,7 +3,7 @@ package exp.listeners;
 import com.microsoft.playwright.*;
 import exp.DefaultPageFactory;
 import exp.core.PageFactory;
-import exp.core.UsePage;
+import exp.annotations.UsePage;
 import org.testng.IHookCallBack;
 import org.testng.IHookable;
 import org.testng.ITestContext;

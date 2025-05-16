@@ -1,10 +1,10 @@
 package exp.tests;
 
 import com.microsoft.playwright.Page;
-import exp.core.PageParam;
+import exp.annotations.PageParam;
 import exp.core.PlaywrightBaseTest;
 import exp.core.CustomPageFactory;
-import exp.core.UsePage;
+import exp.annotations.UsePage;
 import exp.pages.GooglePage;
 import exp.pages.HomePage;
 import org.testng.annotations.Test;

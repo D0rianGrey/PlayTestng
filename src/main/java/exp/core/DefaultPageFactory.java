@@ -6,7 +6,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import exp.core.PageFactory;
 import exp.core.PageObject;
-import exp.core.PageParam;
+import exp.annotations.PageParam;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;

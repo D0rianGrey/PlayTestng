@@ -1,6 +1,6 @@
 package exp.listeners;
 
-import exp.core.UsePage;
+import exp.annotations.UsePage;
 import org.testng.annotations.ITestAnnotation;
 import org.testng.internal.annotations.IAnnotationTransformer;
 
