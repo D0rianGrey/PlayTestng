@@ -6,15 +6,25 @@ import exp.PlaywrightConfig;
 import exp.ScreenshotHelper;
 import exp.annotations.TestData;
 import exp.annotations.UsePage;
+import exp.utils.TestLogger;
 import org.testng.ITestContext;
 import org.testng.ITestResult;
 import org.testng.annotations.*;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Базовый класс для всех тестов, использующих Playwright.
+ * Обеспечивает инициализацию и закрытие ресурсов Playwright,
+ * а также внедрение зависимостей в тестовые методы.
+ */
 @Test(dataProvider = "pageObjects")
 public abstract class PlaywrightBaseTest {
 
@@ -27,38 +37,166 @@ public abstract class PlaywrightBaseTest {
     // Потокобезопасная карта для фабрик страниц
     private static final Map<Class<?>, PageFactory> pageFactories = new ConcurrentHashMap<>();
 
+    // Путь для сохранения трассировок
+    private Path tracePath;
+
+    /**
+     * Инициализация ресурсов Playwright перед запуском тестового класса.
+     * Создает экземпляры Playwright, Browser, BrowserContext и Page.
+     *
+     * @param context контекст тестирования TestNG
+     */
     @BeforeClass
     public void setUp(ITestContext context) {
+        TestLogger.LOGGER.info("Инициализация ресурсов Playwright для класса {}", getClass().getSimpleName());
+
+        // Создаем экземпляр Playwright
         playwright = Playwright.create();
 
-        browser = playwright.chromium().launch(
-                new BrowserType.LaunchOptions()
-                        .setHeadless(false)
-                        .setSlowMo(100)
-        );
+        // Используем BrowserManager для создания браузера
+        browser = BrowserManager.createBrowser(playwright);
 
-        browserContext = browser.newContext();
+        // Создаем контекст с настройками из конфигурации
+        browserContext = browser.newContext(BrowserManager.createContextOptions());
+
+        // Создаем страницу
         page = browserContext.newPage();
+
+        // Если в конфигурации включена трассировка, начинаем её запись
+        if (PlaywrightConfig.getInstance().captureTraceOnFailure()) {
+            // Создаем директорию для трассировок, если её нет
+            try {
+                Path tracesDir = Paths.get("traces");
+                if (!tracesDir.toFile().exists()) {
+                    tracesDir.toFile().mkdirs();
+                }
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Не удалось создать директорию для трассировок: {}", e.getMessage());
+            }
+
+            browserContext.tracing().start(new Tracing.StartOptions()
+                    .setScreenshots(true)
+                    .setSnapshots(true)
+                    .setSources(true));
+        }
+
+        // Сохраняем объекты в контексте для доступа из других классов
+        context.setAttribute("playwright", playwright);
+        context.setAttribute("browser", browser);
+        context.setAttribute("browserContext", browserContext);
+        context.setAttribute("page", page);
+
+        TestLogger.LOGGER.info("Ресурсы Playwright инициализированы успешно");
     }
 
+    /**
+     * Освобождение ресурсов Playwright после завершения всех тестов в классе.
+     * Закрывает Page, BrowserContext, Browser и Playwright.
+     */
     @AfterClass
     public void tearDown() {
+        TestLogger.LOGGER.info("Освобождение ресурсов Playwright для класса {}", getClass().getSimpleName());
+
+        // Останавливаем трассировку, если она была запущена
+        if (PlaywrightConfig.getInstance().captureTraceOnFailure() && browserContext != null) {
+            try {
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+                tracePath = Paths.get("traces", getClass().getSimpleName() + "_" + timestamp + ".zip");
+                browserContext.tracing().stop(new Tracing.StopOptions().setPath(tracePath));
+                TestLogger.LOGGER.info("Трассировка сохранена в {}", tracePath);
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Не удалось сохранить трассировку: {}", e.getMessage());
+            }
+        }
+
+        // Закрываем ресурсы в обратном порядке
         if (page != null) {
-            page.close();
+            try {
+                page.close();
+                TestLogger.LOGGER.debug("Page закрыт");
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Ошибка при закрытии Page: {}", e.getMessage());
+            }
         }
+
         if (browserContext != null) {
-            browserContext.close();
+            try {
+                browserContext.close();
+                TestLogger.LOGGER.debug("BrowserContext закрыт");
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Ошибка при закрытии BrowserContext: {}", e.getMessage());
+            }
         }
+
         if (browser != null) {
-            browser.close();
+            try {
+                browser.close();
+                TestLogger.LOGGER.debug("Browser закрыт");
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Ошибка при закрытии Browser: {}", e.getMessage());
+            }
         }
+
         if (playwright != null) {
-            playwright.close();
+            try {
+                playwright.close();
+                TestLogger.LOGGER.debug("Playwright закрыт");
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Ошибка при закрытии Playwright: {}", e.getMessage());
+            }
+        }
+
+        TestLogger.LOGGER.info("Ресурсы Playwright освобождены успешно");
+    }
+
+    /**
+     * Действия после каждого теста.
+     * Делает скриншот и сохраняет трассировку в случае ошибки.
+     *
+     * @param result результат выполнения теста
+     */
+    @AfterMethod
+    public void afterMethod(ITestResult result) {
+        // Делаем скриншот в случае ошибки, если это настроено в конфигурации
+        if (PlaywrightConfig.getInstance().takeScreenshotOnFailure() && result.getStatus() == ITestResult.FAILURE) {
+            ScreenshotHelper.captureScreenshotOnFailure(result, page);
+        }
+
+        // Если тест не прошел, и трассировка уже остановлена (в tearDown),
+        // добавляем информацию о трассировке в отчет
+        if (result.getStatus() == ITestResult.FAILURE && tracePath != null) {
+            result.setAttribute("trace", tracePath.toString());
+            TestLogger.LOGGER.info("Для теста {} сохранена трассировка: {}",
+                    result.getMethod().getMethodName(), tracePath);
+        }
+
+        // Очищаем контекст страницы после каждого теста, если это включено в конфигурации
+        if (PlaywrightConfig.getInstance().isClearContextAfterTest() && browserContext != null) {
+            try {
+                // Очищаем cookies и localStorage
+                browserContext.clearCookies();
+                page.evaluate("localStorage.clear();");
+                page.evaluate("sessionStorage.clear();");
+                TestLogger.LOGGER.debug("Контекст страницы очищен после теста {}",
+                        result.getMethod().getMethodName());
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Ошибка при очистке контекста: {}", e.getMessage());
+            }
         }
     }
 
+    /**
+     * Поставщик данных для тестовых методов.
+     * Обеспечивает внедрение объектов Playwright и Page Objects в тестовые методы.
+     * Также поддерживает параметризацию тестов с помощью аннотации TestData.
+     *
+     * @param method тестовый метод
+     * @return массив параметров для тестового метода
+     */
     @DataProvider(name = "pageObjects")
     public Object[][] pageObjectsProvider(Method method) {
+        TestLogger.LOGGER.debug("Подготовка параметров для метода {}", method.getName());
+
         // Проверяем, есть ли аннотация TestData
         TestData testData = method.getAnnotation(TestData.class);
 
@@ -69,6 +207,8 @@ public abstract class PlaywrightBaseTest {
             int dataCount = dataValues.length;
             // Результирующий массив параметров
             Object[][] result = new Object[dataCount][];
+
+            TestLogger.LOGGER.debug("Обнаружена аннотация TestData с {} наборами данных", dataCount);
 
             // Для каждого набора данных создаем параметры
             for (int i = 0; i < dataCount; i++) {
@@ -88,6 +228,8 @@ public abstract class PlaywrightBaseTest {
                     if (!dataParameterSet && paramType.equals(String.class)) {
                         params[j] = dataValues[i];
                         dataParameterSet = true;
+                        TestLogger.LOGGER.debug("Установлено значение '{}' для параметра {}",
+                                dataValues[i], param.getName());
                     }
                     // Иначе обрабатываем параметр как обычно
                     else if (paramType.equals(Playwright.class)) {
@@ -110,7 +252,15 @@ public abstract class PlaywrightBaseTest {
 
                             if (pageObject != null) {
                                 params[j] = pageObject;
+                                TestLogger.LOGGER.debug("Создан объект типа {} для параметра {}",
+                                        pageObject.getClass().getSimpleName(), param.getName());
+                            } else {
+                                TestLogger.LOGGER.warn("Не удалось создать объект для параметра {}",
+                                        param.getName());
                             }
+                        } else {
+                            TestLogger.LOGGER.warn("Фабрика не может создать объект типа {} для параметра {}",
+                                    paramType.getSimpleName(), param.getName());
                         }
                     }
                 }
@@ -149,7 +299,15 @@ public abstract class PlaywrightBaseTest {
 
                     if (pageObject != null) {
                         params[i] = pageObject;
+                        TestLogger.LOGGER.debug("Создан объект типа {} для параметра {}",
+                                pageObject.getClass().getSimpleName(), param.getName());
+                    } else {
+                        TestLogger.LOGGER.warn("Не удалось создать объект для параметра {}",
+                                param.getName());
                     }
+                } else {
+                    TestLogger.LOGGER.warn("Фабрика не может создать объект типа {} для параметра {}",
+                            paramType.getSimpleName(), param.getName());
                 }
             }
         }
@@ -157,6 +315,12 @@ public abstract class PlaywrightBaseTest {
         return new Object[][]{params};
     }
 
+    /**
+     * Получает фабрику страниц из кэша или создает новую.
+     *
+     * @param factoryClass класс фабрики страниц
+     * @return экземпляр фабрики страниц
+     */
     private PageFactory getPageFactory(Class<? extends PageFactory> factoryClass) {
         PageFactory factory = pageFactories.get(factoryClass);
         if (factory == null) {
@@ -166,8 +330,11 @@ public abstract class PlaywrightBaseTest {
                 if (factory == null) {
                     try {
                         factory = factoryClass.getDeclaredConstructor().newInstance();
+                        TestLogger.LOGGER.debug("Создана новая фабрика страниц типа {}",
+                                factoryClass.getSimpleName());
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        TestLogger.LOGGER.error("Ошибка при создании фабрики страниц {}: {}",
+                                factoryClass.getSimpleName(), e.getMessage());
                         factory = new DefaultPageFactory();
                     }
                     pageFactories.put(factoryClass, factory);
@@ -177,18 +344,12 @@ public abstract class PlaywrightBaseTest {
         return factory;
     }
 
-    @AfterMethod
-    public void afterMethod(ITestResult result) {
-        if (PlaywrightConfig.getInstance().takeScreenshotOnFailure()) {
-            ScreenshotHelper.captureScreenshotOnFailure(result, page);
-        }
-
-        if (PlaywrightConfig.getInstance().captureTraceOnFailure()) {
-            ScreenshotHelper.captureTraceOnFailure(result, browserContext);
-        }
-    }
-
-    // Вспомогательный метод для получения класса фабрики страниц
+    /**
+     * Получает класс фабрики страниц на основе аннотаций.
+     *
+     * @param method тестовый метод
+     * @return класс фабрики страниц
+     */
     private Class<? extends PageFactory> getPageFactoryClass(Method method) {
         UsePage usePage = method.getAnnotation(UsePage.class);
         if (usePage == null) {
@@ -196,5 +357,86 @@ public abstract class PlaywrightBaseTest {
         }
 
         return usePage != null ? usePage.value() : DefaultPageFactory.class;
+    }
+
+    /**
+     * Обновляет настройки текущего контекста браузера.
+     * Полезно для изменения настроек во время выполнения теста.
+     *
+     * @param options новые настройки контекста
+     */
+    protected void updateContextOptions(Browser.NewContextOptions options) {
+        if (browserContext != null) {
+            TestLogger.LOGGER.info("Обновление настроек контекста браузера");
+
+            // Закрываем текущий контекст и страницу
+            if (page != null) {
+                page.close();
+            }
+            browserContext.close();
+
+            // Создаем новый контекст с обновленными настройками
+            browserContext = browser.newContext(options);
+            page = browserContext.newPage();
+
+            TestLogger.LOGGER.info("Настройки контекста обновлены, создана новая страница");
+        } else {
+            TestLogger.LOGGER.warn("Невозможно обновить настройки - контекст браузера не инициализирован");
+        }
+    }
+
+    /**
+     * Создает новую страницу в текущем контексте браузера.
+     *
+     * @return новая страница
+     */
+    protected Page createNewPage() {
+        if (browserContext != null) {
+            TestLogger.LOGGER.debug("Создание новой страницы в текущем контексте");
+            return browserContext.newPage();
+        } else {
+            TestLogger.LOGGER.warn("Невозможно создать страницу - контекст браузера не инициализирован");
+            return null;
+        }
+    }
+
+    /**
+     * Перезагружает текущую страницу.
+     */
+    protected void refreshPage() {
+        if (page != null) {
+            TestLogger.LOGGER.debug("Перезагрузка текущей страницы");
+            page.reload();
+        } else {
+            TestLogger.LOGGER.warn("Невозможно перезагрузить страницу - страница не инициализирована");
+        }
+    }
+
+    /**
+     * Переходит на указанный URL.
+     *
+     * @param url URL для перехода
+     */
+    protected void navigateTo(String url) {
+        if (page != null) {
+            TestLogger.LOGGER.debug("Переход на URL: {}", url);
+            page.navigate(url);
+        } else {
+            TestLogger.LOGGER.warn("Невозможно перейти на URL - страница не инициализирована");
+        }
+    }
+
+    /**
+     * Очищает cookies и localStorage в текущем контексте.
+     */
+    protected void clearContext() {
+        if (browserContext != null && page != null) {
+            TestLogger.LOGGER.debug("Очистка контекста (cookies и localStorage)");
+            browserContext.clearCookies();
+            page.evaluate("localStorage.clear();");
+            page.evaluate("sessionStorage.clear();");
+        } else {
+            TestLogger.LOGGER.warn("Невозможно очистить контекст - контекст или страница не инициализированы");
+        }
     }
 }
