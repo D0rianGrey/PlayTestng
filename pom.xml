@@ -97,9 +97,16 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.2</version>
                 <configuration>
-                    <!-- Параллельное выполнение -->
-                    <parallel>classes</parallel>
-                    <threadCount>3</threadCount>
+                    <!-- Включение тестов по шаблону -->
+                    <includes>
+                        <include>**/*Test.java</include>
+                    </includes>
+
+                    <!-- Системные свойства -->
+                    <systemPropertyVariables>
+                        <browser>${browser}</browser>
+                        <headless>${headless}</headless>
+                    </systemPropertyVariables>
 
                     <!-- Слушатели TestNG -->
                     <properties>
@@ -111,34 +118,26 @@
                         </property>
                     </properties>
 
-                    <!-- Настройка включаемых тестов -->
-                    <includes>
-                        <include>**/*Test.class</include>
-                    </includes>
-
-                    <!-- Файл конфигурации TestNG -->
-                    <suiteXmlFiles>
-                        <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
-                    </suiteXmlFiles>
-
-                    <!-- Системные свойства -->
-                    <systemPropertyVariables>
-                        <!-- Используются переменные из профилей и основных свойств -->
-                        <browser>${browser}</browser>
-                        <headless>${headless}</headless>
-                    </systemPropertyVariables>
+                    <!-- Дополнительные настройки -->
+                    <trimStackTrace>false</trimStackTrace>
+                    <useFile>false</useFile>
+                    <printSummary>true</printSummary>
+                    <redirectTestOutputToFile>false</redirectTestOutputToFile>
+                    <disableXmlReport>false</disableXmlReport>
                 </configuration>
             </plugin>
 
-            <!-- Плагин для установки браузеров Playwright -->
+            <!-- Плагин для установки Playwright -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
                 <executions>
+                    <!-- Отключаем автоматическую установку в процессе сборки -->
+                    <!-- Вместо этого мы будем запускать вручную перед тестами -->
                     <execution>
                         <id>playwright-install</id>
-                        <phase>process-test-classes</phase>
+                        <phase>none</phase>
                         <goals>
                             <goal>java</goal>
                         </goals>
@@ -153,5 +152,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
