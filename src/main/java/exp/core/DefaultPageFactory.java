@@ -12,7 +12,53 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 
+/**
+ * Стандартная реализация фабрики для создания объектов страниц.
+ * <p>
+ * Отвечает за создание и настройку объектов страниц, которые будут
+ * внедрены в тестовые методы. Поддерживает различные способы создания
+ * страниц и обрабатывает аннотацию PageParam для настройки параметров.
+ * <p>
+ * Эта фабрика используется по умолчанию, если не указана другая фабрика
+ * в аннотации @UsePage.
+ * <p>
+ * Поддерживаемые способы создания страниц:
+ * - Через конструктор с параметром Page
+ * - Через пустой конструктор и последующий вызов setPage
+ * - Через методы initPage или setPage
+ * <p>
+ * Пример использования:
+ * ```
+ * // Стандартная фабрика используется по умолчанию
+ *
+ * @UsePage public class MyTest extends PlaywrightBaseTest {
+ * @Test public void testHomePage(HomePage homePage) {
+ * // homePage создан с помощью DefaultPageFactory
+ * }
+ * }
+ * <p>
+ * // Явное указание стандартной фабрики
+ * @UsePage(DefaultPageFactory.class) public class AnotherTest extends PlaywrightBaseTest {
+ * // тесты...
+ * }
+ * ```
+ */
 public class DefaultPageFactory implements PageFactory {
+
+    /**
+     * Создает объект страницы для тестового метода.
+     * <p>
+     * Анализирует параметры метода и создает объекты страниц нужных типов.
+     * Обрабатывает аннотацию PageParam для настройки параметров страницы.
+     *
+     * @param playwright экземпляр Playwright
+     * @param browser    экземпляр Browser
+     * @param context    экземпляр BrowserContext
+     * @param page       экземпляр Page
+     * @param testClass  класс теста
+     * @param testMethod метод теста
+     * @return созданный объект страницы или null, если страница не может быть создана
+     */
     @Override
     public Object createPage(Playwright playwright, Browser browser, BrowserContext context,
                              Page page, Class<?> testClass, Method testMethod) {
@@ -52,7 +98,13 @@ public class DefaultPageFactory implements PageFactory {
     }
 
     /**
-     * Создает объект страницы заданного типа
+     * Создает объект страницы заданного типа.
+     * <p>
+     * Пробует различные способы создания:
+     * 1. Через конструктор с параметром Page
+     * 2. Через пустой конструктор и интерфейс PageObject
+     * 3. Через пустой конструктор и метод initPage
+     * 4. Через пустой конструктор и метод setPage
      *
      * @param pageType тип страницы
      * @param page     объект Page из Playwright
@@ -97,6 +149,12 @@ public class DefaultPageFactory implements PageFactory {
         }
     }
 
+    /**
+     * Проверяет, может ли фабрика создать страницу указанного типа.
+     *
+     * @param pageType тип страницы
+     * @return true, если фабрика может создать страницу этого типа, иначе false
+     */
     @Override
     public boolean canCreate(Class<?> pageType) {
         // Проверяем, является ли класс страницей
@@ -113,6 +171,12 @@ public class DefaultPageFactory implements PageFactory {
                         hasPageConstructorOrMethod(pageType));
     }
 
+    /**
+     * Проверяет, имеет ли класс конструктор с параметром Page или методы для установки Page.
+     *
+     * @param type проверяемый тип
+     * @return true, если класс имеет способ принять объект Page, иначе false
+     */
     private boolean hasPageConstructorOrMethod(Class<?> type) {
         // Проверка наличия конструктора или методов
         try {

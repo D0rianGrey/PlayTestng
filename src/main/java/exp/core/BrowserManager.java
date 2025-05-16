@@ -3,7 +3,6 @@ package exp.core;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
-import exp.PlaywrightConfig;
 import exp.utils.TestLogger;
 
 import java.nio.file.Paths;
@@ -13,11 +12,24 @@ import java.util.Map;
 /**
  * Менеджер для создания и управления экземплярами браузеров.
  * Поддерживает все браузеры, доступные в Playwright: Chromium, Firefox и WebKit.
+ * <p>
+ * Ключевые возможности:
+ * - Создание различных типов браузеров (Chromium, Firefox, WebKit)
+ * - Настройка параметров запуска браузера
+ * - Создание контекста браузера с различными настройками
+ * - Поддержка эмуляции устройств
+ * <p>
+ * Пример использования:
+ * ```
+ * Browser browser = BrowserManager.createBrowser(playwright);
+ * BrowserContext context = browser.newContext(BrowserManager.createContextOptions());
+ * ```
  */
 public class BrowserManager {
 
     /**
      * Создает экземпляр браузера на основе конфигурации.
+     * Тип браузера определяется из настроек в PlaywrightConfig.
      *
      * @param playwright экземпляр Playwright
      * @return экземпляр браузера
@@ -74,6 +86,17 @@ public class BrowserManager {
 
     /**
      * Создает контекст браузера с настройками из конфигурации.
+     * Настройки включают:
+     * - Размер вьюпорта
+     * - User-agent
+     * - Локаль и часовой пояс
+     * - Запись видео
+     * - Геолокацию
+     * - Разрешения
+     * - Эмуляцию устройств
+     * - Настройки HTTPS
+     * - Состояние хранилища
+     * - Цветовую схему
      *
      * @return опции для создания контекста браузера
      */
@@ -185,6 +208,10 @@ public class BrowserManager {
 
     /**
      * Создает опции браузера на основе аргументов командной строки.
+     * Поддерживаемые аргументы:
+     * - --headless - запуск браузера в безголовом режиме
+     * - --slow-mo=значение - замедление действий браузера
+     * - --timeout=значение - таймаут операций
      *
      * @param args аргументы командной строки
      * @return опции запуска браузера

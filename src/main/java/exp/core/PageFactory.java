@@ -1,3 +1,4 @@
+
 package exp.core;
 
 import com.microsoft.playwright.Browser;
@@ -7,9 +8,26 @@ import com.microsoft.playwright.Playwright;
 
 import java.lang.reflect.Method;
 
+/**
+ * Интерфейс для фабрик, создающих объекты страниц.
+ * Фабрики используются фреймворком для создания объектов страниц и внедрения их в тесты.
+ * <p>
+ * Каждая реализация PageFactory определяет свою логику создания страниц,
+ * что позволяет настраивать процесс создания под конкретные нужды.
+ * <p>
+ * Пример использования:
+ * ```
+ *
+ * @UsePage(CustomPageFactory.class) public class MyTest extends PlaywrightBaseTest {
+ * @Test public void testWithCustomFactory(HomePage homePage) {
+ * // homePage создан с помощью CustomPageFactory
+ * }
+ * }
+ * ```
+ */
 public interface PageFactory {
     /**
-     * Создает и настраивает экземпляр страницы для тестирования
+     * Создает и настраивает экземпляр страницы для тестирования.
      *
      * @param playwright Экземпляр Playwright
      * @param browser    Экземпляр Browser
@@ -23,10 +41,10 @@ public interface PageFactory {
                       Page page, Class<?> testClass, Method testMethod);
 
     /**
-     * Определяет, может ли фабрика создать страницу указанного типа
+     * Определяет, может ли фабрика создать страницу указанного типа.
      *
      * @param pageType Тип страницы
-     * @return true, если фабрика может создать такую страницу
+     * @return true, если фабрика может создать такую страницу, иначе false
      */
     boolean canCreate(Class<?> pageType);
 }

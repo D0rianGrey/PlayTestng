@@ -18,18 +18,57 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Слушатель TestNG для внедрения объектов Playwright и Page Objects в тестовые методы.
- * Реализует интерфейс IHookable для перехвата вызовов тестовых методов.
+ * <p>
+ * Этот класс реализует интерфейс IHookable, который позволяет перехватывать
+ * вызовы тестовых методов и модифицировать их параметры перед выполнением.
+ * Таким образом, он внедряет объекты Playwright (Page, Browser и т.д.) и
+ * Page Objects в тестовые методы автоматически.
+ * <p>
+ * Для работы этого слушателя тестовый класс должен быть аннотирован
+ * {@link UsePage} или отдельные методы должны иметь эту аннотацию.
+ * <p>
+ * Преимущества использования этого слушателя:
+ * - Автоматическое внедрение зависимостей в тесты
+ * - Уменьшение количества шаблонного кода
+ * - Унификация доступа к объектам Playwright
+ * - Поддержка многопоточного выполнения тестов
+ * <p>
+ * Пример регистрации слушателя в testng.xml:
+ * ```xml
+ * <listeners>
+ * <listener class-name="exp.listeners.PlaywrightPageInjector"/>
+ * </listeners>
+ * ```
+ * <p>
+ * Пример использования с тестовым классом:
+ * ```java
+ *
+ * @UsePage public class LoginTest extends PlaywrightBaseTest {
+ * @Test public void testLogin(LoginPage loginPage, Page page) {
+ * // loginPage и page внедрены автоматически
+ * }
+ * }
+ * ```
  */
 public class PlaywrightPageInjector implements IHookable {
+    /**
+     * Ключи для хранения объектов Playwright в контексте теста.
+     */
     private static final String PLAYWRIGHT_KEY = "playwright";
     private static final String BROWSER_KEY = "browser";
     private static final String CONTEXT_KEY = "browserContext";
     private static final String PAGE_KEY = "page";
 
-    // Потокобезопасный map для кэширования фабрик
+    /**
+     * Потокобезопасный кэш для фабрик страниц.
+     */
     private static final Map<Class<?>, PageFactory> pageFactories = new ConcurrentHashMap<>();
 
-    // Используем ThreadLocal для хранения объектов Playwright для каждого потока
+    /**
+     * Объекты Playwright, привязанные к текущему потоку выполнения.
+     * Используется ThreadLocal для обеспечения изоляции между потоками
+     * при параллельном выполнении тестов.
+     */
     private final ThreadLocal<Playwright> playwrightThreadLocal = new ThreadLocal<>();
     private final ThreadLocal<Browser> browserThreadLocal = new ThreadLocal<>();
     private final ThreadLocal<BrowserContext> contextThreadLocal = new ThreadLocal<>();
@@ -106,6 +145,7 @@ public class PlaywrightPageInjector implements IHookable {
 
     /**
      * Инициализирует объекты Playwright для текущего потока.
+     * Если объекты уже созданы, использует их повторно.
      *
      * @param context контекст тестирования TestNG
      */
@@ -135,6 +175,7 @@ public class PlaywrightPageInjector implements IHookable {
 
     /**
      * Подготавливает параметры для внедрения в тестовый метод.
+     * Создает объекты Page Objects с помощью указанной фабрики.
      *
      * @param method     метод теста
      * @param testResult результат выполнения теста
@@ -196,6 +237,8 @@ public class PlaywrightPageInjector implements IHookable {
 
     /**
      * Получает фабрику страниц из кэша или создает новую.
+     * Использует паттерн Double-Checked Locking для оптимизации
+     * многопоточного доступа.
      *
      * @param factoryClass класс фабрики страниц
      * @return экземпляр фабрики страниц

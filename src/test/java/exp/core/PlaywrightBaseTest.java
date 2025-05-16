@@ -2,7 +2,6 @@ package exp.core;
 
 import com.microsoft.playwright.*;
 import exp.DefaultPageFactory;
-import exp.PlaywrightConfig;
 import exp.ScreenshotHelper;
 import exp.annotations.TestData;
 import exp.annotations.UsePage;
@@ -24,6 +23,24 @@ import java.util.concurrent.ConcurrentHashMap;
  * Базовый класс для всех тестов, использующих Playwright.
  * Обеспечивает инициализацию и закрытие ресурсов Playwright,
  * а также внедрение зависимостей в тестовые методы.
+ * <p>
+ * Особенности:
+ * - Автоматическое создание и управление объектами Playwright, Browser, BrowserContext и Page
+ * - Автоматическое внедрение Page Objects в тесты через аннотацию @UsePage
+ * - Поддержка параметризации тестов через аннотацию @TestData
+ * - Автоматическое создание скриншотов и трассировок при ошибках
+ * - Поддержка пользовательских фабрик страниц
+ * <p>
+ * Пример использования:
+ * ```
+ *
+ * @UsePage public class MyTest extends PlaywrightBaseTest {
+ * @Test public void testHomePage(HomePage homePage) {
+ * homePage.navigateToHome();
+ * assertTrue(homePage.isLoaded());
+ * }
+ * }
+ * ```
  */
 @Test(dataProvider = "pageObjects")
 public abstract class PlaywrightBaseTest {
