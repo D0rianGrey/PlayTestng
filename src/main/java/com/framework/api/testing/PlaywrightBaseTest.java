@@ -2,13 +2,14 @@ package com.framework.api.testing;
 
 import com.framework.api.annotations.TestData;
 import com.framework.api.annotations.UsePage;
+import com.framework.api.config.PlaywrightConfig;
+import com.framework.api.factory.PageFactory;
+import com.framework.api.listeners.AllureAttachmentHelper;
 import com.framework.internal.browser.BrowserManager;
 import com.framework.internal.factory.DefaultPageFactory;
-import com.framework.api.factory.PageFactory;
-import com.framework.api.config.PlaywrightConfig;
-import com.framework.extentions.screenshots.ScreenshotHelper;
 import com.framework.internal.logging.TestLogger;
 import com.microsoft.playwright.*;
+import io.qameta.allure.*;
 import org.testng.ITestContext;
 import org.testng.ITestResult;
 import org.testng.annotations.*;
@@ -33,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * - Поддержка параметризации тестов через аннотацию @TestData
  * - Автоматическое создание скриншотов и трассировок при ошибках
  * - Поддержка пользовательских фабрик страниц
+ * - Интеграция с Allure для создания подробных отчетов
  * <p>
  * Пример использования:
  * ```
@@ -46,6 +48,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * ```
  */
 @Test(dataProvider = "pageObjects")
+@Epic("Playwright Tests")
 public abstract class PlaywrightBaseTest {
 
     // Не статические поля для изоляции между тестовыми классами
@@ -60,6 +63,9 @@ public abstract class PlaywrightBaseTest {
     // Путь для сохранения трассировок
     private Path tracePath;
 
+    // Путь для сохранения скриншотов
+    private Path screenshotPath;
+
     /**
      * Инициализация ресурсов Playwright перед запуском тестового класса.
      * Создает экземпляры Playwright, Browser, BrowserContext и Page.
@@ -67,6 +73,7 @@ public abstract class PlaywrightBaseTest {
      * @param context контекст тестирования TestNG
      */
     @BeforeClass
+    @Step("Инициализация ресурсов Playwright")
     public void setUp(ITestContext context) {
         TestLogger.LOGGER.info("Инициализация ресурсов Playwright для класса {}", getClass().getSimpleName());
 
@@ -110,10 +117,49 @@ public abstract class PlaywrightBaseTest {
     }
 
     /**
+     * Действия перед выполнением каждого тестового метода.
+     * Добавляет информацию о тесте в Allure отчет.
+     *
+     * @param method метод теста
+     * @param result результат выполнения теста
+     */
+    @BeforeMethod
+    @Step("Подготовка к выполнению теста")
+    public void beforeMethod(Method method, ITestResult result) {
+        TestLogger.LOGGER.info("Подготовка к выполнению теста: {}", method.getName());
+
+        // Добавляем метки из аннотаций в Allure отчет
+        Epic epic = method.getDeclaringClass().getAnnotation(Epic.class);
+        if (epic != null) {
+            Allure.epic(epic.value());
+        }
+
+        Feature feature = method.getDeclaringClass().getAnnotation(Feature.class);
+        if (feature != null) {
+            Allure.feature(feature.value());
+        }
+
+        Story story = method.getAnnotation(Story.class);
+        if (story != null) {
+            Allure.story(story.value());
+        }
+
+        Description description = method.getAnnotation(Description.class);
+        if (description != null) {
+            Allure.description(description.value());
+        }
+
+        // Добавляем информацию о браузере
+        Allure.parameter("Browser", PlaywrightConfig.getInstance().getBrowser());
+        Allure.parameter("Headless Mode", String.valueOf(PlaywrightConfig.getInstance().isHeadless()));
+    }
+
+    /**
      * Освобождение ресурсов Playwright после завершения всех тестов в классе.
      * Закрывает Page, BrowserContext, Browser и Playwright.
      */
     @AfterClass
+    @Step("Освобождение ресурсов Playwright")
     public void tearDown() {
         TestLogger.LOGGER.info("Освобождение ресурсов Playwright для класса {}", getClass().getSimpleName());
 
@@ -176,10 +222,36 @@ public abstract class PlaywrightBaseTest {
      * @param result результат выполнения теста
      */
     @AfterMethod
+    @Step("Завершение теста")
     public void afterMethod(ITestResult result) {
         // Делаем скриншот в случае ошибки, если это настроено в конфигурации
         if (PlaywrightConfig.getInstance().takeScreenshotOnFailure() && result.getStatus() == ITestResult.FAILURE) {
-            ScreenshotHelper.captureScreenshotOnFailure(result, page);
+            try {
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+                String testMethodName = result.getMethod().getMethodName();
+                screenshotPath = Paths.get("screenshots", testMethodName + "_" + timestamp + ".png");
+
+                // Создаем директорию, если её нет
+                Path screenshotDir = Paths.get("screenshots");
+                if (!screenshotDir.toFile().exists()) {
+                    screenshotDir.toFile().mkdirs();
+                }
+
+                // Делаем скриншот
+                page.screenshot(new Page.ScreenshotOptions().setPath(screenshotPath));
+                TestLogger.LOGGER.info("Скриншот сохранен в {}", screenshotPath);
+
+                // Сохраняем путь к скриншоту в атрибутах результата для доступа в AllureTestListener
+                result.setAttribute("screenshot", screenshotPath.toString());
+
+                // Прикрепляем скриншот к отчету Allure напрямую
+                AllureAttachmentHelper.attachScreenshot(screenshotPath, "Скриншот при ошибке");
+
+                // Также прикрепляем HTML страницы
+                AllureAttachmentHelper.attachPageSource(page.content());
+            } catch (Exception e) {
+                TestLogger.LOGGER.error("Не удалось сделать скриншот: {}", e.getMessage());
+            }
         }
 
         // Если тест не прошел, и трассировка уже остановлена (в tearDown),
@@ -188,6 +260,9 @@ public abstract class PlaywrightBaseTest {
             result.setAttribute("trace", tracePath.toString());
             TestLogger.LOGGER.info("Для теста {} сохранена трассировка: {}",
                     result.getMethod().getMethodName(), tracePath);
+
+            // Прикрепляем трассировку к отчету Allure
+            AllureAttachmentHelper.attachTrace(tracePath, "Трассировка при ошибке");
         }
 
         // Очищаем контекст страницы после каждого теста, если это включено в конфигурации
@@ -385,6 +460,7 @@ public abstract class PlaywrightBaseTest {
      *
      * @param options новые настройки контекста
      */
+    @Step("Обновление настроек контекста браузера")
     protected void updateContextOptions(Browser.NewContextOptions options) {
         if (browserContext != null) {
             TestLogger.LOGGER.info("Обновление настроек контекста браузера");
@@ -410,6 +486,7 @@ public abstract class PlaywrightBaseTest {
      *
      * @return новая страница
      */
+    @Step("Создание новой страницы")
     protected Page createNewPage() {
         if (browserContext != null) {
             TestLogger.LOGGER.debug("Создание новой страницы в текущем контексте");
@@ -423,6 +500,7 @@ public abstract class PlaywrightBaseTest {
     /**
      * Перезагружает текущую страницу.
      */
+    @Step("Перезагрузка страницы")
     protected void refreshPage() {
         if (page != null) {
             TestLogger.LOGGER.debug("Перезагрузка текущей страницы");
@@ -437,6 +515,7 @@ public abstract class PlaywrightBaseTest {
      *
      * @param url URL для перехода
      */
+    @Step("Переход на URL: {url}")
     protected void navigateTo(String url) {
         if (page != null) {
             TestLogger.LOGGER.debug("Переход на URL: {}", url);
@@ -449,6 +528,7 @@ public abstract class PlaywrightBaseTest {
     /**
      * Очищает cookies и localStorage в текущем контексте.
      */
+    @Step("Очистка контекста браузера")
     protected void clearContext() {
         if (browserContext != null && page != null) {
             TestLogger.LOGGER.debug("Очистка контекста (cookies и localStorage)");

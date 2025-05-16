@@ -4,6 +4,7 @@
     <listeners>
         <listener class-name="com.framework.api.listeners.PlaywrightPageInjector"/>
         <listener class-name="com.framework.api.listeners.PlaywrightTestFactory"/>
+        <listener class-name="com.framework.api.listeners.AllureTestListener"/>
     </listeners>
 
     <!-- Определение набора тестов для запуска -->

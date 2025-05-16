@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Неудачные тесты",
+    "matchedStatuses": [
+      "failed"
+    ]
+  },
+  {
+    "name": "Ошибки элементов страницы",
+    "messageRegex": ".*Expected condition failed.*",
+    "matchedStatuses": [
+      "failed"
+    ]
+  },
+  {
+    "name": "Проблемы навигации",
+    "messageRegex": ".*timeout.*",
+    "matchedStatuses": [
+      "failed"
+    ]
+  },
+  {
+    "name": "Пропущенные тесты",
+    "matchedStatuses": [
+      "skipped"
+    ]
+  }
+]
