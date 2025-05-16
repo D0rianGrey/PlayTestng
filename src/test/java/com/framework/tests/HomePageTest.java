@@ -1,4 +1,4 @@
-package com.tests;
+package com.framework.tests;
 
 import com.framework.api.testing.PlaywrightBaseTest;
 import com.framework.api.annotations.PageParam;
