@@ -11,7 +11,7 @@ Playwright TestNG - это мощный фреймворк для автомат
 - **Компонентный подход**: выделение повторяющихся элементов интерфейса в отдельные компоненты
 - **Расширенные возможности логирования**: автоматическое логирование действий и ошибок
 - **Автоматические скриншоты и трассировки**: при сбоях тестов
-- **Интеграция с Allure**: детальные и наглядные отчеты
+- **Полная интеграция с Allure Report**: наглядная визуализация результатов с категоризацией ошибок, шагами тестирования и полезными вложениями (скриншоты, HTML, трассировки)
 
 ## Предварительные требования
 - Java 21 или выше
@@ -34,6 +34,11 @@ Playwright TestNG - это мощный фреймворк для автомат
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>7.11.0</version>
+    </dependency>
+    <dependency>
+        <groupId>io.qameta.allure</groupId>
+        <artifactId>allure-testng</artifactId>
+        <version>2.24.0</version>
     </dependency>
     <!-- Другие зависимости указаны в полном руководстве -->
 </dependencies>
@@ -84,6 +89,18 @@ Playwright TestNG - это мощный фреймворк для автомат
             </execution>
         </executions>
     </plugin>
+    
+    <!-- Плагин для Allure отчетов -->
+    <plugin>
+        <groupId>io.qameta.allure</groupId>
+        <artifactId>allure-maven</artifactId>
+        <version>2.12.0</version>
+        <configuration>
+            <reportVersion>2.24.0</reportVersion>
+            <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
+            <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
+        </configuration>
+    </plugin>
 </plugins>
 ```
 
@@ -96,9 +113,14 @@ mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="in
 
 ```java
 @UsePage
+@Epic("UI Tests")
+@Feature("Home Page")
 public class FirstTest extends PlaywrightBaseTest {
     
     @Test
+    @Story("Basic Navigation")
+    @Description("Проверка загрузки домашней страницы")
+    @Severity(SeverityLevel.CRITICAL)
     public void testHomePage(HomePage homePage) {
         homePage.navigateToHome();
         assertTrue(homePage.isLoaded(), "Домашняя страница должна быть загружена");
@@ -136,6 +158,18 @@ mvn clean test -P firefox-headless
 6. Запуск с переопределением системных свойств:
 ```bash
 mvn clean test -Dbrowser=firefox -Dheadless=true
+```
+
+### Генерация отчета Allure
+
+1. Генерация отчета после выполнения тестов:
+```bash
+mvn allure:report
+```
+
+2. Запуск веб-сервера с отчетом:
+```bash
+mvn allure:serve
 ```
 
 ## Документация
