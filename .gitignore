@@ -39,3 +39,4 @@ build/
 /allure-results/
 /traces/
 /.allure/
+/screenshots/
