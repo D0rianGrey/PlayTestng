@@ -39,8 +39,56 @@ Playwright TestNG - это мощный фреймворк для автомат
 </dependencies>
 ```
 
-2. Установите браузеры Playwright:
+2. Настройте плагины Maven в `pom.xml`:
+```xml
+<plugins>
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+            <release>21</release>
+        </configuration>
+    </plugin>
+
+    <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.2</version>
+        <configuration>
+            <includes>
+                <include>**/*Test.java</include>
+            </includes>
+            <!-- Другие настройки указаны в полном руководстве -->
+        </configuration>
+    </plugin>
+
+    <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+            <execution>
+                <id>playwright-install</id>
+                <phase>none</phase>
+                <!-- Важно: фаза none отключает автоматический запуск -->
+                <goals>
+                    <goal>java</goal>
+                </goals>
+                <configuration>
+                    <mainClass>com.microsoft.playwright.CLI</mainClass>
+                    <arguments>
+                        <argument>install</argument>
+                    </arguments>
+                </configuration>
+            </execution>
+        </executions>
+    </plugin>
+</plugins>
 ```
+
+3. Установите браузеры Playwright:
+```bash
 mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install"
 ```
 
@@ -58,10 +106,36 @@ public class FirstTest extends PlaywrightBaseTest {
 }
 ```
 
-### Запуск тестов
+### Запуск тестов через консоль
 
+1. Установите браузеры Playwright, если это еще не сделано:
+```bash
+mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install"
 ```
+
+2. Запуск всех тестов:
+```bash
 mvn clean test
+```
+
+3. Запуск конкретного тестового класса:
+```bash
+mvn clean test -Dtest=HomePageTest
+```
+
+4. Запуск конкретного метода:
+```bash
+mvn clean test -Dtest=HomePageTest#testHomePage
+```
+
+5. Запуск с определенным профилем:
+```bash
+mvn clean test -P firefox-headless
+```
+
+6. Запуск с переопределением системных свойств:
+```bash
+mvn clean test -Dbrowser=firefox -Dheadless=true
 ```
 
 ## Документация
