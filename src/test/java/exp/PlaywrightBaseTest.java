@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Test(dataProvider = "pageObjects")
 public abstract class PlaywrightBaseTest {
     // Не статические поля для изоляции между тестовыми классами
     protected Playwright playwright;

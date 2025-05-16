@@ -10,26 +10,26 @@ import static org.testng.Assert.assertTrue;
 @UsePage
 public class HomePageTest extends PlaywrightBaseTest {
 
-    @Test(dataProvider = "pageObjects")
+    @Test
     public void testHomePage(HomePage homePage) {
         homePage.navigateToHome();
         assertTrue(homePage.isLoaded(), "Домашняя страница должна быть загружена");
     }
 
-    @Test(dataProvider = "pageObjects")
+    @Test
     public void testDirectPage(Page page) {
         page.navigate("https://example.com");
         assertTrue(page.title().contains("Example Domain"), "Страница должна содержать правильный заголовок");
     }
 
-    @Test(dataProvider = "pageObjects")
+    @Test
     @UsePage(CustomPageFactory.class)
     public void testWithCustomFactory(HomePage homePage) {
         homePage.navigateToHome();
         assertTrue(homePage.isLoaded(), "Домашняя страница должна быть загружена");
     }
 
-    @Test(dataProvider = "pageObjects")
+    @Test
     public void testWithPageFactory(GooglePage page) {
         page.navigateToHome();
     }
