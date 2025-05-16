@@ -8,8 +8,8 @@ import org.testng.ITestResult;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PlaywrightPageInjector implements IHookable {
     private static final String PLAYWRIGHT_KEY = "playwright";
@@ -17,12 +17,14 @@ public class PlaywrightPageInjector implements IHookable {
     private static final String CONTEXT_KEY = "browserContext";
     private static final String PAGE_KEY = "page";
 
-    private static final Map<Class<?>, PageFactory> pageFactories = new HashMap<>();
+    // Потокобезопасный map для кэширования фабрик
+    private static final Map<Class<?>, PageFactory> pageFactories = new ConcurrentHashMap<>();
 
-    protected Playwright playwright;
-    protected Browser browser;
-    protected BrowserContext browserContext;
-    protected Page page;
+    // Используем ThreadLocal для хранения объектов Playwright для каждого потока
+    private final ThreadLocal<Playwright> playwrightThreadLocal = new ThreadLocal<>();
+    private final ThreadLocal<Browser> browserThreadLocal = new ThreadLocal<>();
+    private final ThreadLocal<BrowserContext> contextThreadLocal = new ThreadLocal<>();
+    private final ThreadLocal<Page> pageThreadLocal = new ThreadLocal<>();
 
     @Override
     public void run(IHookCallBack callBack, ITestResult testResult) {
@@ -53,7 +55,7 @@ public class PlaywrightPageInjector implements IHookable {
         // Подготавливаем параметры для внедрения
         Object[] paramValues = preparePageObjects(method, testResult, factory);
 
-        // Устанавливаем параметры через рефлексию, так как в новых версиях TestNG нет метода runTestMethod с параметрами
+        // Устанавливаем параметры через рефлексию
         try {
             // Сначала пробуем получить метод setParameters у ITestResult
             try {
@@ -62,7 +64,6 @@ public class PlaywrightPageInjector implements IHookable {
                 setParamsMethod.invoke(testResult, new Object[]{paramValues});
             } catch (NoSuchMethodException e) {
                 // Если этот метод не найден, попробуем другой подход
-                // Вариант для более новых версий TestNG
                 Object testNGInvocationInfo = testResult.getClass().getMethod("getTestNGInvocationInfo").invoke(testResult);
                 Method setParamsMethod = testNGInvocationInfo.getClass().getMethod("setParameterValues", Object[].class);
                 setParamsMethod.invoke(testNGInvocationInfo, new Object[]{paramValues});
@@ -71,7 +72,6 @@ public class PlaywrightPageInjector implements IHookable {
             // Запускаем тестовый метод (теперь с правильными параметрами)
             callBack.runTestMethod(testResult);
         } catch (Exception e) {
-            // Если что-то пошло не так, выводим сообщение об ошибке и запускаем тест как обычно
             System.err.println("Не удалось установить параметры для теста: " + e.getMessage());
             e.printStackTrace();
             callBack.runTestMethod(testResult);
@@ -79,33 +79,24 @@ public class PlaywrightPageInjector implements IHookable {
     }
 
     private void initPlaywrightObjects(ITestContext context) {
-        // Получаем или создаем объекты Playwright из контекста
-        playwright = (Playwright) context.getAttribute(PLAYWRIGHT_KEY);
+        // Используем ThreadLocal для изоляции объектов между потоками
+        Playwright playwright = playwrightThreadLocal.get();
         if (playwright == null) {
             playwright = Playwright.create();
-            context.setAttribute(PLAYWRIGHT_KEY, playwright);
-        }
+            playwrightThreadLocal.set(playwright);
 
-        browser = (Browser) context.getAttribute(BROWSER_KEY);
-        if (browser == null) {
-            browser = playwright.chromium().launch(
+            Browser browser = playwright.chromium().launch(
                     new BrowserType.LaunchOptions()
                             .setHeadless(false)
                             .setSlowMo(100)
             );
-            context.setAttribute(BROWSER_KEY, browser);
-        }
+            browserThreadLocal.set(browser);
 
-        browserContext = (BrowserContext) context.getAttribute(CONTEXT_KEY);
-        if (browserContext == null) {
-            browserContext = browser.newContext();
-            context.setAttribute(CONTEXT_KEY, browserContext);
-        }
+            BrowserContext browserContext = browser.newContext();
+            contextThreadLocal.set(browserContext);
 
-        page = (Page) context.getAttribute(PAGE_KEY);
-        if (page == null) {
-            page = browserContext.newPage();
-            context.setAttribute(PAGE_KEY, page);
+            Page page = browserContext.newPage();
+            pageThreadLocal.set(page);
         }
     }
 
@@ -113,6 +104,12 @@ public class PlaywrightPageInjector implements IHookable {
         Object instance = testResult.getInstance();
         Parameter[] parameters = method.getParameters();
         Object[] paramValues = new Object[parameters.length];
+
+        // Получаем объекты Playwright из ThreadLocal
+        Playwright playwright = playwrightThreadLocal.get();
+        Browser browser = browserThreadLocal.get();
+        BrowserContext browserContext = contextThreadLocal.get();
+        Page page = pageThreadLocal.get();
 
         // Заполняем массив параметров соответствующими значениями
         for (int i = 0; i < parameters.length; i++) {
@@ -146,13 +143,19 @@ public class PlaywrightPageInjector implements IHookable {
     private PageFactory getPageFactory(Class<? extends PageFactory> factoryClass) {
         PageFactory factory = pageFactories.get(factoryClass);
         if (factory == null) {
-            try {
-                factory = factoryClass.getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                e.printStackTrace();
-                factory = new DefaultPageFactory();
+            synchronized (pageFactories) {
+                // Повторная проверка внутри синхронизированного блока (паттерн Double-Checked Locking)
+                factory = pageFactories.get(factoryClass);
+                if (factory == null) {
+                    try {
+                        factory = factoryClass.getDeclaredConstructor().newInstance();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        factory = new DefaultPageFactory();
+                    }
+                    pageFactories.put(factoryClass, factory);
+                }
             }
-            pageFactories.put(factoryClass, factory);
         }
         return factory;
     }

@@ -1,11 +1,10 @@
 package exp;
 
 import com.microsoft.playwright.Page;
-import exp.CustomPageFactory;
-import exp.PlaywrightBaseTest;
-import exp.UsePage;
+import exp.pages.GooglePage;
 import exp.pages.HomePage;
 import org.testng.annotations.Test;
+
 import static org.testng.Assert.assertTrue;
 
 @UsePage
@@ -28,5 +27,10 @@ public class HomePageTest extends PlaywrightBaseTest {
     public void testWithCustomFactory(HomePage homePage) {
         homePage.navigateToHome();
         assertTrue(homePage.isLoaded(), "Домашняя страница должна быть загружена");
+    }
+
+    @Test(dataProvider = "pageObjects")
+    public void testWithPageFactory(GooglePage page) {
+        page.navigateToHome();
     }
 }

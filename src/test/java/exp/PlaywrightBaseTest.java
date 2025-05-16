@@ -8,14 +8,17 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public abstract class PlaywrightBaseTest {
-    protected static Playwright playwright;
-    protected static Browser browser;
-    protected static BrowserContext browserContext;
-    protected static Page page;
+    // Не статические поля для изоляции между тестовыми классами
+    protected Playwright playwright;
+    protected Browser browser;
+    protected BrowserContext browserContext;
+    protected Page page;
 
-    private static final Map<Class<?>, PageFactory> pageFactories = new HashMap<>();
+    // Потокобезопасная карта для фабрик страниц
+    private static final Map<Class<?>, PageFactory> pageFactories = new ConcurrentHashMap<>();
 
     @BeforeClass
     public void setUp(ITestContext context) {
@@ -95,13 +98,19 @@ public abstract class PlaywrightBaseTest {
     private PageFactory getPageFactory(Class<? extends PageFactory> factoryClass) {
         PageFactory factory = pageFactories.get(factoryClass);
         if (factory == null) {
-            try {
-                factory = factoryClass.getDeclaredConstructor().newInstance();
-            } catch (Exception e) {
-                e.printStackTrace();
-                factory = new DefaultPageFactory();
+            synchronized (pageFactories) {
+                // Повторная проверка внутри синхронизированного блока (паттерн Double-Checked Locking)
+                factory = pageFactories.get(factoryClass);
+                if (factory == null) {
+                    try {
+                        factory = factoryClass.getDeclaredConstructor().newInstance();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        factory = new DefaultPageFactory();
+                    }
+                    pageFactories.put(factoryClass, factory);
+                }
             }
-            pageFactories.put(factoryClass, factory);
         }
         return factory;
     }

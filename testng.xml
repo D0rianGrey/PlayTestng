@@ -1,11 +1,12 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
-<suite name="PlaywrightTestSuite" parallel="classes" thread-count="2">
+<suite name="PlaywrightTestSuite" parallel="classes" thread-count="3">
     <listeners>
         <listener class-name="exp.PlaywrightPageInjector"/>
     </listeners>
-    <test name="HomePage Tests">
+    <test name="HomePage Tests" parallel="classes" thread-count="3">
         <classes>
             <class name="exp.HomePageTest"/>
+            <!-- Добавьте другие тестовые классы здесь -->
         </classes>
     </test>
 </suite>
