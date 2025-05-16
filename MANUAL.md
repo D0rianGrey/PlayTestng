@@ -121,21 +121,21 @@ src/
 ```java
 package ваш.пакет.tests;
 
-import exp.annotations.UsePage;
-import exp.core.PlaywrightBaseTest;
-import exp.pages.HomePage;
+import com.annotations.UsePage;
+import com.framework.api.testing.PlaywrightBaseTest;
+import com.pages.HomePage;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertTrue;
 
 @UsePage
 public class MyFirstTest extends PlaywrightBaseTest {
-    
-    @Test
-    public void testHomePage(HomePage homePage) {
-        homePage.navigateToHome();
-        assertTrue(homePage.isLoaded(), "Домашняя страница должна быть загружена");
-    }
+
+   @Test
+   public void testHomePage(HomePage homePage) {
+      homePage.navigateToHome();
+      assertTrue(homePage.isLoaded(), "Домашняя страница должна быть загружена");
+   }
 }
 ```
 
@@ -161,44 +161,44 @@ public class MyFirstTest extends PlaywrightBaseTest {
 package ваш.пакет.pages;
 
 import com.microsoft.playwright.Page;
-import exp.core.PageObject;
+import com.core.PageObject;
 
 public class LoginPage implements PageObject {
-    private Page page;
-    
-    // Локаторы элементов
-    private String usernameInput = "#username";
-    private String passwordInput = "#password";
-    private String loginButton = "button[type='submit']";
-    
-    public LoginPage(Page page) {
-        this.page = page;
-    }
-    
-    @Override
-    public void setPage(Page page) {
-        this.page = page;
-    }
-    
-    @Override
-    public Page getPage() {
-        return page;
-    }
-    
-    // Методы для работы со страницей
-    public void navigateToLogin() {
-        page.navigate("https://example.com/login");
-    }
-    
-    public void login(String username, String password) {
-        page.fill(usernameInput, username);
-        page.fill(passwordInput, password);
-        page.click(loginButton);
-    }
-    
-    public boolean isLoggedIn() {
-        return page.isVisible(".dashboard");
-    }
+   private Page page;
+
+   // Локаторы элементов
+   private String usernameInput = "#username";
+   private String passwordInput = "#password";
+   private String loginButton = "button[type='submit']";
+
+   public LoginPage(Page page) {
+      this.page = page;
+   }
+
+   @Override
+   public void setPage(Page page) {
+      this.page = page;
+   }
+
+   @Override
+   public Page getPage() {
+      return page;
+   }
+
+   // Методы для работы со страницей
+   public void navigateToLogin() {
+      page.navigate("https://example.com/login");
+   }
+
+   public void login(String username, String password) {
+      page.fill(usernameInput, username);
+      page.fill(passwordInput, password);
+      page.click(loginButton);
+   }
+
+   public boolean isLoggedIn() {
+      return page.isVisible(".dashboard");
+   }
 }
 ```
 
@@ -210,27 +210,27 @@ public class LoginPage implements PageObject {
 package ваш.пакет.pages;
 
 import com.microsoft.playwright.Page;
-import exp.pages.BasePage;
+import com.pages.BasePage;
 
 public class DashboardPage extends BasePage {
-    
-    private String welcomeMessage = ".welcome-message";
-    
-    public DashboardPage(Page page) {
-        super(page);
-    }
-    
-    public void navigateToDashboard() {
-        page.navigate("https://example.com/dashboard");
-    }
-    
-    public String getWelcomeMessage() {
-        return page.locator(welcomeMessage).textContent();
-    }
-    
-    public boolean isLoaded() {
-        return page.url().contains("/dashboard") && page.isVisible(welcomeMessage);
-    }
+
+   private String welcomeMessage = ".welcome-message";
+
+   public DashboardPage(Page page) {
+      super(page);
+   }
+
+   public void navigateToDashboard() {
+      page.navigate("https://example.com/dashboard");
+   }
+
+   public String getWelcomeMessage() {
+      return page.locator(welcomeMessage).textContent();
+   }
+
+   public boolean isLoaded() {
+      return page.url().contains("/dashboard") && page.isVisible(welcomeMessage);
+   }
 }
 ```
 
@@ -245,31 +245,30 @@ public class DashboardPage extends BasePage {
 ```java
 package ваш.пакет.components;
 
-import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
-import exp.core.BaseComponent;
+import com.core.BaseComponent;
 
 public class NavigationMenu extends BaseComponent {
-    
-    private String homeButton = ".home-btn";
-    private String profileButton = ".profile-btn";
-    private String logoutButton = ".logout-btn";
-    
-    public NavigationMenu(Page page) {
-        super(page, "nav.main-menu");
-    }
-    
-    public void clickHome() {
-        root.locator(homeButton).click();
-    }
-    
-    public void clickProfile() {
-        root.locator(profileButton).click();
-    }
-    
-    public void logout() {
-        root.locator(logoutButton).click();
-    }
+
+   private String homeButton = ".home-btn";
+   private String profileButton = ".profile-btn";
+   private String logoutButton = ".logout-btn";
+
+   public NavigationMenu(Page page) {
+      super(page, "nav.main-menu");
+   }
+
+   public void clickHome() {
+      root.locator(homeButton).click();
+   }
+
+   public void clickProfile() {
+      root.locator(profileButton).click();
+   }
+
+   public void logout() {
+      root.locator(logoutButton).click();
+   }
 }
 ```
 
@@ -279,23 +278,23 @@ public class NavigationMenu extends BaseComponent {
 package ваш.пакет.pages;
 
 import com.microsoft.playwright.Page;
-import exp.pages.BasePage;
+import com.pages.BasePage;
 import ваш.пакет.components.NavigationMenu;
 
 public class MainPage extends BasePage {
-    
-    private NavigationMenu navMenu;
-    
-    public MainPage(Page page) {
-        super(page);
-        navMenu = new NavigationMenu(page);
-    }
-    
-    public NavigationMenu getNavMenu() {
-        return navMenu;
-    }
-    
-    // Другие методы страницы...
+
+   private NavigationMenu navMenu;
+
+   public MainPage(Page page) {
+      super(page);
+      navMenu = new NavigationMenu(page);
+   }
+
+   public NavigationMenu getNavMenu() {
+      return navMenu;
+   }
+
+   // Другие методы страницы...
 }
 ```
 
@@ -418,11 +417,17 @@ timezone=Europe/Moscow
 ### Программное изменение настроек
 
 ```java
-import exp.core.PlaywrightConfig;
+
 
 // В начале теста
-PlaywrightConfig.getInstance().setProperty("browser", "firefox");
-PlaywrightConfig.getInstance().setProperty("headless", "true");
+PlaywrightConfig.getInstance().
+
+setProperty("browser","firefox");
+PlaywrightConfig.
+
+getInstance().
+
+setProperty("headless","true");
 ```
 
 ## 7. Запуск тестов
@@ -450,19 +455,19 @@ mvn clean test -Dtest=HomePageTest
 ```xml
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.0.dtd">
 <suite name="PlaywrightTestSuite" parallel="classes" thread-count="3">
-    <!-- Регистрация слушателей -->
-    <listeners>
-        <listener class-name="exp.listeners.PlaywrightPageInjector"/>
-        <listener class-name="exp.listeners.PlaywrightTestFactory"/>
-    </listeners>
+   <!-- Регистрация слушателей -->
+   <listeners>
+      <listener class-name="com.listeners.PlaywrightPageInjector"/>
+      <listener class-name="com.listeners.PlaywrightTestFactory"/>
+   </listeners>
 
-    <!-- Определение тестов -->
-    <test name="HomePage Tests">
-        <classes>
-            <class name="ваш.пакет.tests.HomePageTest"/>
-            <!-- Другие тестовые классы -->
-        </classes>
-    </test>
+   <!-- Определение тестов -->
+   <test name="HomePage Tests">
+      <classes>
+         <class name="ваш.пакет.tests.HomePageTest"/>
+         <!-- Другие тестовые классы -->
+      </classes>
+   </test>
 </suite>
 ```
 
@@ -504,11 +509,13 @@ mvn clean test -Dtest=HomePageTest
 Используйте `TestLogger` для логирования:
 
 ```java
-import exp.utils.TestLogger;
+
 
 // В коде теста или страницы
 TestLogger.LOGGER.info("Выполняется важное действие");
-TestLogger.LOGGER.debug("Значение переменной: {}", someValue);
+TestLogger.LOGGER.
+
+debug("Значение переменной: {}",someValue);
 ```
 
 ### Allure отчеты

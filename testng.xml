@@ -23,14 +23,14 @@
 <suite name="PlaywrightTestSuite" parallel="classes" thread-count="3">
     <!-- Регистрация слушателей для обработки аннотаций и внедрения зависимостей -->
     <listeners>
-        <listener class-name="exp.listeners.PlaywrightPageInjector"/>
-        <listener class-name="exp.listeners.PlaywrightTestFactory"/>
+        <listener class-name="com.listeners.PlaywrightPageInjector"/>
+        <listener class-name="com.listeners.PlaywrightTestFactory"/>
     </listeners>
 
     <!-- Определение набора тестов для запуска -->
     <test name="HomePage Tests" parallel="classes" thread-count="3">
         <classes>
-            <class name="exp.tests.HomePageTest"/>
+            <class name="com.tests.HomePageTest"/>
             <!-- Добавьте другие тестовые классы здесь -->
         </classes>
     </test>
